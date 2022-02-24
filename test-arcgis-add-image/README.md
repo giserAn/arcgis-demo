@@ -5,6 +5,6 @@
 通过扩展 BaseDynamicLayer.createSubclass() 类自定义CustomImageOverlayLayer图层
 
 ### 示例
-代码：[示例](https://gitee.com/angiser-demo/arcgis-demo/edit/master/test-arcgis-add-image/index.html)
+demo：[预览](https://giseran.github.io/arcgis-demo/test-arcgis-add-image/index.html)
 
-![输入图片说明](example.png)
+![输入图片说明](https://giseran.github.io/arcgis-demo/test-arcgis-add-image/xample.png)
