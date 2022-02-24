@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>Custom DynamicLayer - 4.12</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.12/esri/themes/light/main.css" />
+    <style>
+        html,
+        body,
+        #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+    <script src="https://js.arcgis.com/4.12/"></script>
+</head>
+
+<body>
+    <div id="viewDiv"></div>
+    <script>
+        require([
+            "esri/request",
+            "esri/Map",
+            "esri/Basemap",
+            "esri/views/MapView",
+            "esri/layers/BaseDynamicLayer",
+            "esri/layers/TileLayer",
+            "esri/core/urlUtils"
+        ], function (esriRequest, Map, Basemap, MapView, BaseDynamicLayer, TileLayer) {
+
+            //自定义叠加图片图层
+            var CustomImageOverlayLayer = BaseDynamicLayer.createSubclass({
+                properties: {
+                    picUrl: null,
+                    picExtent: null,
+                    image: null,
+                    canvas: null,
+                    view: null,
+                },
+                // override getImageUrl() to generate URL to the image
+                getImageUrl: function (extent, width, height) {
+                    // return the URL to the generated image
+                    return this.picUrl;
+                },
+                // Fetches images for given extent and size
+                fetchImage: function (extent, width, height) {
+                    let url = this.getImageUrl(extent, width, height);
+
+                    // request for the image  based on the generated url
+                    return esriRequest(url, {
+                            responseType: "image"
+                        })
+                        .then(function (response) {
+                            let image = response.data;
+
+                            // create a canvas with teal fill
+                            let canvas = document.createElement("canvas");
+                            let context = canvas.getContext("2d");
+                            canvas.width = width;
+                            canvas.height = height;
+
+                            //左上角坐标转换屏幕坐标,为了获取canvas绘制图片的起点
+                            var mapPoint = {
+                                x: this.picExtent.xmin,
+                                y: this.picExtent.ymax,
+                                spatialReference: {
+                                    wkid: 4326
+                                }
+                            };
+                            var screenPoint = this.view.toScreen(mapPoint);
+                            //根据extent范围计算canvas绘制图片的宽度以及高度
+                            //左下角
+                            var leftbottom = {
+                                x: this.picExtent.xmin,
+                                y: this.picExtent.ymin,
+                                spatialReference: {
+                                    wkid: 4326
+                                }
+                            };
+                            var screen_leftbottom = this.view.toScreen(leftbottom);
+                            //右上角
+                            var righttop = {
+                                x: this.picExtent.xmax,
+                                y: this.picExtent.ymax,
+                                spatialReference: {
+                                    wkid: 4326
+                                }
+                            };
+                            var screen_righttop = this.view.toScreen(righttop);
+
+                            context.drawImage(image, screenPoint.x, screenPoint.y, Math.abs(
+                                screen_righttop.x - screen_leftbottom.x), Math.abs(
+                                screen_righttop.y - screen_leftbottom.y));
+
+                            return canvas;
+                        }.bind(this));
+                }
+            });
+
+            var layer = new TileLayer({
+                url: "http://server.arcgisonline.com/arcgis/rest/services/ESRI_Imagery_World_2D/MapServer"
+            });
+            var imgBasemap = new Basemap({
+                baseLayers: [layer]
+            });
+
+            map = new Map({
+                basemap: imgBasemap,
+            });
+
+            view = new MapView({
+                container: "viewDiv",
+                map: map,
+                center: [105.905415, 30.19928], //地图中心经纬度
+                zoom: 6.8, //缩放级别
+            });
+
+            view.when(function () {
+                var ImageOverlayLayer = new CustomImageOverlayLayer({
+                    picUrl: "http://localhost:8090/images/res.png",
+                    extent: {
+                        //图像显示4个点的位置信息
+                        xmin: 105.216,
+                        ymin: 28.1,
+                        xmax: 110.2,
+                        ymax: 32.21
+                    },
+                    view: view
+                });
+                map.add(ImageOverlayLayer);
+                //地图移动刷新,防止地图初始化时候，图片叠加图层加载刷新不过来
+                setTimeout(function () {
+                    var center = view.center.clone();
+                    center.x -= 0.001; //底图是经纬度
+                    view.center = center;
+                    view.goTo(view.center, {
+                        speedFactor: 0.1,
+                        easing: "linear" //linear, in-cubic, out-cubic, in-out-cubic, in-expo, out-expo, in-out-expo
+                    });
+                }, 500);
+            }, function (error) {
+                console.log("The view's resources failed to load: ", error);
+            });
+
+
+        });
+    </script>
+</body>
+
+</html>
