@@ -115,14 +115,14 @@
             view = new MapView({
                 container: "viewDiv",
                 map: map,
-                center: [105.905415, 30.19928], //地图中心经纬度
+                center: [107.605415, 30.19928], //地图中心经纬度
                 zoom: 6.8, //缩放级别
             });
 
             view.when(function () {
                 var ImageOverlayLayer = new CustomImageOverlayLayer({
-                    picUrl: "http://localhost:8090/images/res.png",
-                    extent: {
+                    picUrl: "http://localhost:8090/images/res3.png",
+                    picExtent: {
                         //图像显示4个点的位置信息
                         xmin: 105.216,
                         ymin: 28.1,
