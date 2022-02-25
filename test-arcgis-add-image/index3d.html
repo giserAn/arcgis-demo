@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>Custom DynamicLayer - 4.12</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.12/esri/themes/light/main.css" />
+    <style>
+        html,
+        body,
+        #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+    <script src="https://js.arcgis.com/4.12/"></script>
+</head>
+
+<body>
+    <div id="viewDiv"></div>
+    <script>
+        require([
+            "esri/request",
+            "esri/Map",
+            "esri/Basemap",
+            "esri/views/MapView",
+            "esri/views/SceneView",
+            "esri/layers/BaseDynamicLayer",
+            "esri/layers/TileLayer",
+            "esri/core/urlUtils"
+        ], function (esriRequest, Map, Basemap, MapView, SceneView, BaseDynamicLayer, TileLayer) {
+
+
+
+            //自定义叠加图片图层
+            var CustomImageOverlayLayer = BaseDynamicLayer.createSubclass({
+                properties: {
+                    picUrl: null,
+                    picExtent: null,
+                    image: null,
+                    canvas: null,
+                    view: null,
+                    handIndex: 0
+                },
+                // override getImageUrl() to generate URL to the image
+                getImageUrl: function (extent, width, height) {
+
+                    // return the URL to the generated image
+                    return this.picUrl;
+                },
+                // Fetches images for given extent and size
+                fetchImage: function (extent, width, height) {
+
+                    // 处理会触发两次
+                    this.handIndex++;
+                    // console.log(this.handIndex);
+                    if (this.handIndex % 2 === 0) { // 偶数    
+                        return
+                    } else { // 奇数  
+
+                        let url = this.getImageUrl(extent, width, height);
+                        // request for the image  based on the generated url
+                        return esriRequest(url, {
+                                responseType: "image"
+                            })
+                            .then(function (response) {
+                                let image = response.data;
+                                console.log(image);
+
+                                // create a canvas with teal fill
+                                let canvas = document.createElement("canvas");
+                                let context = canvas.getContext("2d");
+                                canvas.width = width;
+                                canvas.height = height;
+
+                                /**计算原始图片单位像素的地理距离*/
+                                let mapBox = [extent.xmin, extent.ymin, extent.xmax, extent
+                                    .ymax
+                                ];
+                                let imgBox = [this.picExtent.xmin, this.picExtent.ymin, this
+                                    .picExtent.xmax, this.picExtent.ymax
+                                ];
+
+                                let imgWidth = image.width;
+                                let imgHeight = image.height;
+                                let imgDx = imgWidth / (imgBox[2] - imgBox[0]);
+                                let imgDy = imgHeight / (imgBox[3] - imgBox[1]);
+
+                                /**计算地图图片单位像素的地理距离*/
+                                let mapDx = width / (mapBox[2] - mapBox[0]);
+                                let mapDy = height / (mapBox[3] - mapBox[1]);
+
+                                // 计算相交
+                                function crossRect(a, c) {
+                                    let left = Math.max(a[0], c[0]);
+                                    let right = Math.min(a[2], c[2]);
+                                    let top = Math.min(a[3], c[3]);
+                                    let bottom = Math.max(a[1], c[1]);
+                                    return [left, bottom, right, top];
+                                };
+                                let crossBox = crossRect(mapBox, imgBox);
+
+                                /**计算地图图片的绘制区域*/
+                                let imgLeft = Math.ceil(imgDx * (crossBox[0] - imgBox[0]));
+                                let imgRight = Math.ceil(imgDx * (crossBox[2] - imgBox[0]));
+                                let imgTop = Math.ceil(imgDy * (imgBox[3] - crossBox[3]));
+                                let imgBottom = Math.ceil(imgDy * (imgBox[3] - crossBox[1]));
+
+                                /**计算原始图片的裁剪区域*/
+                                let mapLeft = Math.ceil(mapDx * (crossBox[0] - mapBox[0]));
+                                let mapRight = Math.ceil(mapDx * (crossBox[2] - mapBox[0]));
+                                let mapTop = Math.ceil(mapDy * (mapBox[3] - crossBox[3]));
+                                let mapBottom = Math.ceil(mapDy * (mapBox[3] - crossBox[1]));
+
+
+                                context.drawImage(image, imgLeft, imgTop, imgRight - imgLeft,
+                                    imgBottom - imgTop, mapLeft, mapTop, mapRight - mapLeft,
+                                    mapBottom - mapTop);
+
+                                return canvas;
+                            }.bind(this));
+                    }
+                }
+            });
+
+            var layer = new TileLayer({
+                url: "http://server.arcgisonline.com/arcgis/rest/services/ESRI_Imagery_World_2D/MapServer"
+            });
+            var imgBasemap = new Basemap({
+                baseLayers: [layer]
+            });
+
+            var map = new Map({
+                basemap: imgBasemap,
+            });
+
+            var view = new SceneView({
+                container: "viewDiv",
+                map: map,
+                center: [107.605415, 30.19928], //地图中心经纬度
+                zoom: 5.8, //缩放级别
+            });
+
+            view.when(function () {
+                var ImageOverlayLayer = new CustomImageOverlayLayer({
+                    picUrl: "http://localhost:8090/images/res3.png",
+                    picExtent: {
+                        //图像显示4个点的位置信息
+                        xmin: 105.216,
+                        ymin: 28.1,
+                        xmax: 110.2,
+                        ymax: 32.21
+                    },
+                    view: view
+                });
+                console.log(ImageOverlayLayer);
+                map.add(ImageOverlayLayer);
+                //地图移动刷新,防止地图初始化时候，图片叠加图层加载刷新不过来
+            }, function (error) {
+                console.log("The view's resources failed to load: ", error);
+            });
+
+
+        });
+    </script>
+</body>
+
+</html>
