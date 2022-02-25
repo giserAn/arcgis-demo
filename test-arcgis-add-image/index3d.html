@@ -54,12 +54,12 @@
                 // Fetches images for given extent and size
                 fetchImage: function (extent, width, height) {
 
-                    // 处理会触发两次
-                    this.handIndex++;
-                    // console.log(this.handIndex);
-                    if (this.handIndex % 2 === 0) { // 偶数    
-                        return
-                    } else { // 奇数  
+                    // 会触发两次???
+//                     this.handIndex++;
+//                     // console.log(this.handIndex);
+//                     if (this.handIndex % 2 === 0) { // 偶数    
+//                         return
+//                     } else { // 奇数  
 
                         let url = this.getImageUrl(extent, width, height);
                         // request for the image  based on the generated url
@@ -122,7 +122,7 @@
 
                                 return canvas;
                             }.bind(this));
-                    }
+//                     }
                 }
             });
 
